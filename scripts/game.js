@@ -15,16 +15,25 @@ var Game =
 			Mouse.y = event.pageY - App.canvas.offsetTop
 		})
 
+		canvas.onclick = event => {
+			Mouse.leftButtonState = "clicked"
+		}
+
 		Tile.init()
 		Map.generate()
 		Game.update(1)
 	},
+
+	// Just temp for low cpu usage.
+	lastPath: null,
+	lastHoverTile: null,
 
 	// Render on things on canvas.
 	render: ctx =>
 	{
 		// Clear canvas.
 		ctx.clearRect(0, 0, App.canvas.width, App.canvas.height)
+		ctx.font = "16px 'Ubuntu Mono', monospace"
 
 		// Draw map tiles.
 		for(var i=0; i < 800/32; i++)
@@ -43,25 +52,36 @@ var Game =
 		// Tile hover.
 		const hoverX = Math.floor(Mouse.x/Map.TILE_SIZE)
 		const hoverY = Math.floor(Mouse.y/Map.TILE_SIZE)
-
-		if(Map.grid[hoverX][hoverY]){
+		if(Map.grid[hoverX] && Map.grid[hoverX][hoverY]){
 			Draw.rect(hoverX*Map.TILE_SIZE, hoverY*Map.TILE_SIZE, Map.TILE_SIZE, Map.TILE_SIZE, 'rgba(0,255,0,.5)')
 		}
 
+		// Text.
 		var player = Map.entityList[0]
-		Draw.text('Path from '+player.x+', '+player.y+' to '+hoverX+', '+hoverY+'.', 5, 5)
+		Draw.text('Path from '+player.x+', '+player.y+' to '+hoverX+', '+hoverY+'.', 10, 10)
 
-		var path = Pathfinder.findPath(Map.grid, player, {x: hoverX, y: hoverY})
-
-		if(path)
+		// Pathfind from player to mouse position.
+		var path = Game.lastPath;
+		if(!Game.lastHoverTile || !Game.lastHoverTile.equals({x: hoverX, y: hoverY}))
 		{
-			Draw.text('Path: '+path.length+' nodes.', 5, 20)
-			path.forEach(node => {
+			path = Pathfinder.findPath(Map.grid, player, {x: hoverX, y: hoverY})
+			Game.lastPath = path
+			Game.lastHoverTile = new Node(hoverX, hoverY)
+		}
+
+		if(path) // Path found.
+		{
+			Draw.text('Path: '+path.length+' nodes.', 10, 30)
+			path.forEach(node => { // Draw all nodes.
 				Draw.rect(node.x*32+12, node.y*32+12, 8, 8, 'red')
 			})
+
+			if(Mouse.isPressed()){
+				player.followPath(path)
+			}
 		}
 		else {
-			Draw.text('Path: not found.', 5, 20)
+			Draw.text('Path: not found.', 10, 30)
 		}
 
 		// Draw entities.
@@ -73,7 +93,14 @@ var Game =
 	// Run game logic.
 	update: delta =>
 	{
+		// Update entities TODO: This should not be like this.
+		Map.entityList.forEach(entity => {
+			entity.update(delta)
+		})
+
 		Game.render(Game.ctx)
+		Mouse.poll()
+
 		window.requestAnimationFrame(Game.update)
 	}
 }
@@ -133,9 +160,46 @@ var Entity = function(name, x, y, color)
 	this.y = y
 	this.color = color
 
+	this.__pathStep = null
+	this.__currentPath = null
+
 	// Render entity.
 	this.render = ctx => {
 		Draw.rect((this.x*Map.TILE_SIZE)+2, (this.y*Map.TILE_SIZE)+2, 28, 28, this.color)
+	}
+
+	// Update entity.
+	this.update = delta => 
+	{
+		if(!this.canWalk())
+		{
+			if(this.__pathStep == null)
+			{
+				this.__pathStep = this.__currentPath.shift()
+				this.moveTo(this.__pathStep.x, this.__pathStep.y)
+				this.__pathStep = null
+			}
+
+			if(this.__currentPath.length == 0)
+				this.__currentPath = null
+		}
+	}
+
+	this.moveTo = (x, y) => 
+	{
+		this.x = x
+		this.y = y
+	}
+
+	this.followPath = path => 
+	{
+		if(this.canWalk()){
+			this.__currentPath = path
+		}
+	}
+
+	this.canWalk = () => {
+		return this.__currentPath == null
 	}
 }
 
@@ -178,8 +242,14 @@ var Draw =
 		Game.ctx.fillRect(x, y, w, h)
 	},
 
-	text: (str, x, y, color = 'white') =>
+	text: (str, x, y, color = 'white', shadow = true) =>
 	{
+		if(shadow)
+		{
+			Game.ctx.fillStyle = 'rgba(0,0,0,.6)'
+			Game.ctx.fillText(str, x+1, y+11)
+		}
+
 		Game.ctx.fillStyle = color
 		Game.ctx.fillText(str, x, y+10)
 	}
@@ -209,5 +279,22 @@ var Rand =
 var Mouse =
 {
 	x: 0,
-	y: 0
+	y: 0,
+
+	leftButtonState: "none",
+
+	isPressed: () => 
+	{
+		if(Mouse.leftButtonState == "clicked")
+		{
+			Mouse.poll()
+			return true;
+		}
+
+		return false;
+	},
+
+	poll: () => {
+		Mouse.leftButtonState = "none"
+	}
 }

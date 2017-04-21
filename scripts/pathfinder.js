@@ -80,6 +80,7 @@ var Pathfinder =
 			node = node.parent
 		}
 
+		path.reverse()
 		return path
 	},
 
