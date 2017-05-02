@@ -4,11 +4,25 @@ var App =
 {
 	canvas: null,
 
+	width: 800,
+	height: 600,
+
 	// App initialization.
 	init: () => 
 	{
 		console.log('Game init.')
 		App.canvas = document.querySelector('#canvas')
+
+		// If is mobile.
+		if(App.canvas.width > window.innerWidth)
+		{
+			App.canvas.width = window.innerWidth
+			App.canvas.height = window.innerHeight - 60
+		}
+
+		// Set final canvas dimensions
+		App.width = App.canvas.width
+		App.height = App.canvas.height
 
 		// Call @game.init
 		Game.init(App.canvas)

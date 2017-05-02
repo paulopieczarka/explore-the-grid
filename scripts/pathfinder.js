@@ -5,8 +5,8 @@ var Node = function(x, y)
 
 	this.walkable = true
 
-	this.gCost = 0
-	this.hCost = 0
+	this.gCost = 0 //distance from the starting node
+	this.hCost = 0 //distance from the end node
 
 	this.parent = null
 
@@ -21,7 +21,9 @@ var Node = function(x, y)
 
 var Pathfinder =
 {
-	// Start {x,y} : target {x,y}
+	distanceBy: null,
+
+	// Start {x,y} : target {x,y} @return PATH
 	findPath: (grid, start, target) =>
 	{
 		var startNode = new Node(start.x, start.y)
@@ -37,7 +39,10 @@ var Pathfinder =
 			var currentNode = openSet[0]
 			for(var i=1; i < openSet.length; i++)
 			{
-				if(openSet[i].fCost() < currentNode.fCost() || openSet[i].fCost() == currentNode.gCost && openSet[i].hCost < currentNode.hCost){
+				if(openSet[i].fCost() < currentNode.fCost() || 
+					openSet[i].fCost() == currentNode.gCost && 
+					openSet[i].hCost < currentNode.hCost)
+				{
 					currentNode = openSet[i]
 				}
 			}
@@ -85,6 +90,18 @@ var Pathfinder =
 	},
 
 	getDistance: (nodeA, nodeB) =>
+	{
+		return Pathfinder.distanceMethod(nodeA, nodeB)
+	},
+
+	manhattanDistance: (nodeA, nodeB) =>
+	{
+		var dx = Math.abs(nodeA.x - nodeB.x)
+		var dy = Math.abs(nodeA.y - nodeB.y)
+		return 10 * (dx + dy)
+	},
+
+	manhattanDiagDistance: (nodeA, nodeB) =>
 	{
 		var dx = Math.abs(nodeA.x - nodeB.x)
 		var dy = Math.abs(nodeA.y - nodeB.y)
